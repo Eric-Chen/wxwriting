@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { WxAccount } from '../types'
+import { useSettingsStore } from '../stores/settingsStore'
+import { themes } from '../styles/themes'
 
 export default function Settings() {
+  const { currentTheme, setTheme } = useSettingsStore()
   const [name, setName] = useState('')
   const [appId, setAppId] = useState('')
   const [appSecret, setAppSecret] = useState('')
@@ -115,6 +118,26 @@ export default function Settings() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 className="text-lg font-medium text-gray-800 mb-4">文章样式主题</h3>
+        <div className="flex gap-3">
+          {themes.map((theme) => (
+            <button
+              key={theme.name}
+              onClick={() => setTheme(theme.name)}
+              className={`px-4 py-2 rounded-lg text-sm border-2 transition-all ${
+                currentTheme.name === theme.name
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              {theme.name}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-3">主题会影响文章预览和导出的 HTML 样式</p>
       </section>
 
       <section className="bg-white rounded-lg border border-gray-200 p-6">

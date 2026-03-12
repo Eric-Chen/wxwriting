@@ -5,6 +5,7 @@ import { useCategoryStore } from '../stores/categoryStore'
 import { markdownToWxHtml } from '../utils/markdownToWx'
 import MarkdownToolbar from '../components/MarkdownToolbar'
 import HtmlExport from '../components/HtmlExport'
+import { useSettingsStore } from '../stores/settingsStore'
 import { invoke } from '@tauri-apps/api/core'
 
 export default function ArticleEdit() {
@@ -12,6 +13,7 @@ export default function ArticleEdit() {
   const navigate = useNavigate()
   const { createArticle, updateArticle, getArticle } = useArticleStore()
   const { categories, fetchCategories } = useCategoryStore()
+  const { currentTheme } = useSettingsStore()
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -46,10 +48,10 @@ export default function ArticleEdit() {
   // Debounced preview update
   useEffect(() => {
     const timer = setTimeout(() => {
-      setPreviewHtml(markdownToWxHtml(content))
+      setPreviewHtml(markdownToWxHtml(content, currentTheme.styles))
     }, 300)
     return () => clearTimeout(timer)
-  }, [content])
+  }, [content, currentTheme])
 
   // Sync scroll between editor and preview
   const handleEditorScroll = useCallback(() => {
@@ -250,7 +252,7 @@ export default function ArticleEdit() {
       {/* HTML Export Modal */}
       {showHtmlExport && (
         <HtmlExport
-          html={markdownToWxHtml(content)}
+          html={markdownToWxHtml(content, currentTheme.styles)}
           onClose={() => setShowHtmlExport(false)}
         />
       )}
