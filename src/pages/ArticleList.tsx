@@ -11,15 +11,15 @@ const statusLabels: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  pending: 'bg-yellow-100 text-yellow-700',
-  published: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
+  draft: 'bg-slate-100 text-slate-600',
+  pending: 'bg-amber-50 text-amber-700',
+  published: 'bg-emerald-50 text-emerald-700',
+  failed: 'bg-red-50 text-red-600',
 }
 
 export default function ArticleList() {
   const navigate = useNavigate()
-  const { articles, loading, filters, fetchArticles, setFilter, createArticle, deleteArticle } = useArticleStore()
+  const { articles, loading, fetchArticles, setFilter, deleteArticle } = useArticleStore()
   const { categories, fetchCategories } = useCategoryStore()
   const [search, setSearch] = useState('')
 
@@ -29,8 +29,7 @@ export default function ArticleList() {
   }, [])
 
   const handleCreate = async () => {
-    const article = await createArticle('未命名文章', '')
-    navigate(`/articles/${article.id}/edit`)
+    navigate('/articles/new')
   }
 
   const handleDelete = async (id: string) => {
@@ -39,41 +38,41 @@ export default function ArticleList() {
     }
   }
 
-  const handleSearch = () => {
-    setFilter('search', search || null)
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setFilter('search', value || null)
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">文章管理</h2>
+    <div className="p-6 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">文章管理</h2>
         <button
           onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-[var(--color-brand-600)] text-white rounded-lg text-[13px] font-medium hover:bg-[var(--color-brand-700)] active:scale-[0.98] transition-all"
         >
           + 新建文章
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
           <input
             type="text"
-            placeholder="搜索文章..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="搜索文章..."
+            className="w-full pl-9 pr-3 py-2 border border-[var(--color-border)] rounded-lg text-[13px] bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 focus:border-[var(--color-brand-500)] placeholder:text-[var(--color-text-muted)]"
           />
-          <button onClick={handleSearch} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm hover:bg-gray-200">
-            搜索
-          </button>
         </div>
         <select
-          value={filters.categoryId || ''}
           onChange={(e) => setFilter('categoryId', e.target.value || null)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-[var(--color-border)] rounded-lg text-[13px] bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20"
         >
           <option value="">全部分类</option>
           {categories.map((c) => (
@@ -81,47 +80,60 @@ export default function ArticleList() {
           ))}
         </select>
         <select
-          value={filters.status || ''}
           onChange={(e) => setFilter('status', e.target.value || null)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-[var(--color-border)] rounded-lg text-[13px] bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20"
         >
           <option value="">全部状态</option>
           <option value="draft">草稿</option>
           <option value="pending">待发布</option>
           <option value="published">已发布</option>
-          <option value="failed">发布失败</option>
         </select>
       </div>
 
-      {/* Article List */}
+      {/* Content */}
       {loading ? (
-        <p className="text-gray-400 text-sm">加载中...</p>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span className="text-sm">加载中...</span>
+          </div>
+        </div>
       ) : articles.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-2">暂无文章</p>
-          <p className="text-sm">点击"新建文章"开始创作</p>
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <svg className="w-16 h-16 text-[var(--color-border)] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          </svg>
+          <p className="text-[var(--color-text-secondary)] text-sm mb-1">还没有文章</p>
+          <p className="text-[var(--color-text-muted)] text-xs mb-4">点击上方按钮创建你的第一篇文章</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto space-y-1">
           {articles.map((article) => (
             <div
               key={article.id}
-              className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              className="flex items-center px-4 py-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border-light)] hover:border-[var(--color-border)] hover:shadow-sm transition-all group"
             >
-              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/articles/${article.id}/edit`)}>
-                <h3 className="text-sm font-medium text-gray-800 truncate">
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigate(`/articles/${article.id}/edit`)}
+              >
+                <h3 className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">
                   {article.title || '未命名文章'}
                 </h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className={`px-2 py-0.5 rounded text-xs ${statusColors[article.status]}`}>
+                <div className="flex items-center gap-2.5 mt-1.5">
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${statusColors[article.status]}`}>
                     {statusLabels[article.status]}
                   </span>
-                  <span className="text-xs text-gray-400">{article.updated_at}</span>
+                  <span className="text-[11px] text-[var(--color-text-muted)]">{article.updated_at}</span>
                 </div>
               </div>
               <button
                 onClick={() => handleDelete(article.id)}
-                className="ml-4 text-sm text-red-500 hover:text-red-700"
+                className="ml-4 text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="删除文章"
               >
                 删除
               </button>

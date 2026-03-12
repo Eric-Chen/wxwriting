@@ -25,35 +25,38 @@ export default function Categories() {
 
   return (
     <div className="p-6 max-w-2xl">
-      {/* Categories */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">分类管理</h2>
+      <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-6">分类与标签</h2>
+
+      <section className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-5 mb-5">
+        <h3 className="text-[14px] font-medium text-[var(--color-text-primary)] mb-4">分类</h3>
         <div className="flex gap-2 mb-4">
           <input
             type="text"
-            placeholder="新分类名称"
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="输入分类名称"
+            className="flex-1 px-3 py-2 border border-[var(--color-border)] rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/30 focus:border-[var(--color-brand-500)] bg-[var(--color-surface)]"
           />
           <button
             onClick={handleAddCategory}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+            disabled={!newCatName.trim()}
+            className="px-4 py-2 bg-[var(--color-brand-600)] text-white rounded-lg text-[13px] font-medium hover:bg-[var(--color-brand-700)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             添加
           </button>
         </div>
         {categories.length === 0 ? (
-          <p className="text-gray-400 text-sm">暂无分类</p>
+          <p className="text-[13px] text-[var(--color-text-muted)] py-3">暂无分类，添加一个开始整理文章</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                <span className="text-sm text-gray-700">{cat.name}</span>
+              <div key={cat.id} className="group flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors">
+                <span className="text-[13px] text-[var(--color-text-primary)]">{cat.name}</span>
                 <button
                   onClick={() => deleteCategory(cat.id)}
-                  className="text-xs text-red-500 hover:text-red-700"
+                  className="text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`删除分类 ${cat.name}`}
                 >
                   删除
                 </button>
@@ -63,33 +66,39 @@ export default function Categories() {
         )}
       </section>
 
-      {/* Tags */}
-      <section>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">标签管理</h2>
+      <section className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-5">
+        <h3 className="text-[14px] font-medium text-[var(--color-text-primary)] mb-4">标签</h3>
         <div className="flex gap-2 mb-4">
           <input
             type="text"
-            placeholder="新标签名称"
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="输入标签名称"
+            className="flex-1 px-3 py-2 border border-[var(--color-border)] rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/30 focus:border-[var(--color-brand-500)] bg-[var(--color-surface)]"
           />
           <button
             onClick={handleAddTag}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+            disabled={!newTagName.trim()}
+            className="px-4 py-2 bg-[var(--color-brand-600)] text-white rounded-lg text-[13px] font-medium hover:bg-[var(--color-brand-700)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             添加
           </button>
         </div>
         {tags.length === 0 ? (
-          <p className="text-gray-400 text-sm">暂无标签</p>
+          <p className="text-[13px] text-[var(--color-text-muted)] py-3">暂无标签</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
-              <span key={tag.id} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
+              <span key={tag.id} className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-surface-secondary)] border border-[var(--color-border-light)] rounded-full text-[12px] text-[var(--color-text-secondary)]">
                 {tag.name}
-                <button onClick={() => deleteTag(tag.id)} className="text-gray-400 hover:text-red-500 ml-1">&times;</button>
+                <button
+                  onClick={() => deleteTag(tag.id)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)] transition-colors"
+                  aria-label={`删除标签 ${tag.name}`}
+                >
+                  &times;
+                </button>
               </span>
             ))}
           </div>
