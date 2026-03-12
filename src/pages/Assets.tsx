@@ -5,13 +5,18 @@ import { open } from '@tauri-apps/plugin-dialog'
 import type { Image } from '../types'
 
 export default function Assets() {
-  const { images, loading, fetchImages, deleteImage } = useImageStore()
+  const { images, allImages, loading, groupFilter, fetchImages, setGroupFilter, deleteImage } = useImageStore()
   const [selectedImage, setSelectedImage] = useState<Image | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [showNewGroup, setShowNewGroup] = useState(false)
 
   useEffect(() => {
     fetchImages()
   }, [fetchImages])
+
+  // Derive unique group names from ALL images (not just filtered)
+  const allGroups = [...new Set(allImages.filter(i => i.group_name).map(i => i.group_name))]
 
   const handleUpload = useCallback(async () => {
     try {
@@ -37,7 +42,7 @@ export default function Assets() {
           mimeType: mimeMap[ext] || 'image/png',
           width: 0,
           height: 0,
-          groupName: '',
+          groupName: groupFilter || '',
         })
       }
       fetchImages()
@@ -46,7 +51,7 @@ export default function Assets() {
     } finally {
       setUploading(false)
     }
-  }, [fetchImages])
+  }, [fetchImages, groupFilter])
 
   const handleDelete = async (id: string) => {
     if (window.confirm('确定要删除这张图片吗？')) {
@@ -55,12 +60,82 @@ export default function Assets() {
     }
   }
 
+  const handleCreateGroup = () => {
+    if (newGroupName.trim()) {
+      setGroupFilter(newGroupName.trim())
+      setNewGroupName('')
+      setShowNewGroup(false)
+    }
+  }
+
   return (
     <div className="flex h-full">
+      {/* Left sidebar: groups */}
+      <div className="w-48 border-r border-gray-200 bg-white flex flex-col shrink-0">
+        <div className="p-3 border-b border-gray-100">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">分组</span>
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          <button
+            onClick={() => setGroupFilter(null)}
+            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+              groupFilter === null ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            全部素材
+          </button>
+          <button
+            onClick={() => setGroupFilter('')}
+            className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+              groupFilter === '' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            未分组
+          </button>
+          {allGroups.map((g) => (
+            <button
+              key={g}
+              onClick={() => setGroupFilter(g)}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                groupFilter === g ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+        <div className="p-2 border-t border-gray-100">
+          {showNewGroup ? (
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
+                placeholder="分组名"
+                className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+              <button onClick={handleCreateGroup} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">+</button>
+              <button onClick={() => setShowNewGroup(false)} className="px-2 py-1 bg-gray-100 rounded text-xs">x</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNewGroup(true)}
+              className="w-full text-center py-1.5 text-xs text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded"
+            >
+              + 新建分组
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Image grid */}
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">素材库</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            素材库{groupFilter ? ` - ${groupFilter}` : groupFilter === '' ? ' - 未分组' : ''}
+          </h2>
           <button
             onClick={handleUpload}
             disabled={uploading}
@@ -92,6 +167,11 @@ export default function Assets() {
                   alt={img.filename}
                   className="w-full h-full object-cover"
                 />
+                {img.group_name && (
+                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/50 text-white text-xs rounded">
+                    {img.group_name}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -114,8 +194,12 @@ export default function Assets() {
               <p className="text-gray-800 break-all">{selectedImage.filename}</p>
             </div>
             <div>
+              <span className="text-gray-500">分组</span>
+              <p className="text-gray-800">{selectedImage.group_name || '未分组'}</p>
+            </div>
+            <div>
               <span className="text-gray-500">尺寸</span>
-              <p className="text-gray-800">{selectedImage.width} × {selectedImage.height}</p>
+              <p className="text-gray-800">{selectedImage.width} x {selectedImage.height}</p>
             </div>
             <div>
               <span className="text-gray-500">大小</span>

@@ -4,6 +4,7 @@ import type { Image } from '../types'
 
 interface ImageState {
   images: Image[]
+  allImages: Image[]
   loading: boolean
   groupFilter: string | null
   fetchImages: () => Promise<void>
@@ -13,6 +14,7 @@ interface ImageState {
 
 export const useImageStore = create<ImageState>((set, get) => ({
   images: [],
+  allImages: [],
   loading: false,
   groupFilter: null,
 
@@ -20,10 +22,13 @@ export const useImageStore = create<ImageState>((set, get) => ({
     set({ loading: true })
     try {
       const { groupFilter } = get()
-      const images = await invoke<Image[]>('list_images', {
-        groupName: groupFilter,
-      })
-      set({ images })
+      // Always fetch all images for group sidebar
+      const allImages = await invoke<Image[]>('list_images', { groupName: null })
+      // Fetch filtered images
+      const images = groupFilter === null
+        ? allImages
+        : await invoke<Image[]>('list_images', { groupName: groupFilter })
+      set({ images, allImages })
     } finally {
       set({ loading: false })
     }
