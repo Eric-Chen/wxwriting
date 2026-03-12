@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/Users/eric/Documents/runtimes/test_ai/support_tools/wx-tools/src-tauri/target/debug/build/mime_guess-916ede3da4f57dda/out/mime_types_generated.rs
