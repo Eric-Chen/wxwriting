@@ -4,6 +4,8 @@ import { useArticleStore } from '../stores/articleStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { markdownToWxHtml } from '../utils/markdownToWx'
 import MarkdownToolbar from '../components/MarkdownToolbar'
+import HtmlExport from '../components/HtmlExport'
+import { invoke } from '@tauri-apps/api/core'
 
 export default function ArticleEdit() {
   const { id } = useParams<{ id: string }>()
@@ -18,7 +20,9 @@ export default function ArticleEdit() {
   const [digest, setDigest] = useState('')
   const [previewHtml, setPreviewHtml] = useState('')
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
+  const [showHtmlExport, setShowHtmlExport] = useState(false)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const isNew = !id
@@ -80,6 +84,33 @@ export default function ArticleEdit() {
     }
   }
 
+  const handlePublish = async () => {
+    if (!id || !title.trim()) return
+    setPublishing(true)
+    try {
+      // Save first
+      const htmlContent = markdownToWxHtml(content)
+      await updateArticle({
+        id, title, content, htmlContent,
+        categoryId, status: 'pending', coverImageId: null, author, digest,
+      })
+      // Try auto-publish via WeChat API
+      await invoke('publish_article_to_wx', {
+        articleId: id,
+        thumbMediaId: '', // TODO: use cover image media_id
+      })
+      alert('发布成功！草稿已创建到微信公众号。')
+    } catch (e) {
+      // API failed, offer manual fallback
+      const useManual = window.confirm(`自动发布失败: ${e}\n\n是否导出 HTML 手动发布？`)
+      if (useManual) {
+        setShowHtmlExport(true)
+      }
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   // Keyboard shortcut: Ctrl/Cmd+S to save
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -129,6 +160,23 @@ export default function ArticleEdit() {
         >
           待发布
         </button>
+        {!isNew && (
+          <>
+            <button
+              onClick={handlePublish}
+              disabled={publishing || !title.trim()}
+              className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {publishing ? '发布中...' : '发布到微信'}
+            </button>
+            <button
+              onClick={() => setShowHtmlExport(true)}
+              className="px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+            >
+              导出HTML
+            </button>
+          </>
+        )}
       </div>
 
       {/* Editor + Preview */}
@@ -198,6 +246,14 @@ export default function ArticleEdit() {
           />
         </label>
       </div>
+
+      {/* HTML Export Modal */}
+      {showHtmlExport && (
+        <HtmlExport
+          html={markdownToWxHtml(content)}
+          onClose={() => setShowHtmlExport(false)}
+        />
+      )}
     </div>
   )
 }

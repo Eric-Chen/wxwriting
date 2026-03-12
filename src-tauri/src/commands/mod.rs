@@ -3,6 +3,7 @@ pub mod category_cmds;
 pub mod image_cmds;
 pub mod tag_cmds;
 pub mod wx_account_cmds;
+pub mod wx_api_cmds;
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {

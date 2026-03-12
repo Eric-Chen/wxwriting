@@ -46,6 +46,11 @@ pub fn run() {
             commands::image_cmds::list_images,
             commands::wx_account_cmds::save_wx_account,
             commands::wx_account_cmds::get_wx_account,
+            commands::wx_api_cmds::refresh_access_token,
+            commands::wx_api_cmds::get_valid_access_token,
+            commands::wx_api_cmds::upload_wx_image,
+            commands::wx_api_cmds::test_wx_connection,
+            commands::wx_api_cmds::publish_article_to_wx,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
