@@ -74,3 +74,27 @@ pub fn update_image_wx(conn: &Connection, id: &str, wx_media_id: &str, wx_url: &
     )?;
     Ok(())
 }
+
+pub fn update_image_group(conn: &Connection, id: &str, group_name: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE images SET group_name=?1 WHERE id=?2",
+        params![group_name, id],
+    )?;
+    Ok(())
+}
+
+pub fn rename_image_group(conn: &Connection, old_name: &str, new_name: &str) -> Result<usize> {
+    let count = conn.execute(
+        "UPDATE images SET group_name=?1 WHERE group_name=?2",
+        params![new_name, old_name],
+    )?;
+    Ok(count)
+}
+
+pub fn delete_image_group(conn: &Connection, group_name: &str) -> Result<usize> {
+    let count = conn.execute(
+        "UPDATE images SET group_name='' WHERE group_name=?1",
+        params![group_name],
+    )?;
+    Ok(count)
+}

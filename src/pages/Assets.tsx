@@ -1,19 +1,36 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useImageStore } from '../stores/imageStore'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import type { Image } from '../types'
 
 export default function Assets() {
-  const { images, allImages, loading, groupFilter, fetchImages, setGroupFilter, deleteImage } = useImageStore()
+  const {
+    images, allImages, loading, groupFilter,
+    fetchImages, setGroupFilter, deleteImage,
+    renameGroup, deleteGroup, updateImageGroup,
+  } = useImageStore()
   const [selectedImage, setSelectedImage] = useState<Image | null>(null)
   const [uploading, setUploading] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
   const [showNewGroup, setShowNewGroup] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<string | null>(null)
+  const [editGroupName, setEditGroupName] = useState('')
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; group: string } | null>(null)
+  const newGroupRef = useRef<HTMLInputElement>(null)
+  const editGroupRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => { fetchImages() }, [fetchImages])
+  useEffect(() => { if (showNewGroup) newGroupRef.current?.focus() }, [showNewGroup])
+  useEffect(() => { if (editingGroup) editGroupRef.current?.focus() }, [editingGroup])
+
+  // Close context menu on click outside
   useEffect(() => {
-    fetchImages()
-  }, [fetchImages])
+    if (!contextMenu) return
+    const handler = () => setContextMenu(null)
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [contextMenu])
 
   const allGroups = [...new Set(allImages.filter(i => i.group_name).map(i => i.group_name))]
 
@@ -56,10 +73,39 @@ export default function Assets() {
   }
 
   const handleCreateGroup = () => {
-    if (newGroupName.trim()) {
-      setGroupFilter(newGroupName.trim())
+    const name = newGroupName.trim()
+    if (name) {
+      setGroupFilter(name)
       setNewGroupName('')
       setShowNewGroup(false)
+    }
+  }
+
+  const handleRenameGroup = async (oldName: string) => {
+    const name = editGroupName.trim()
+    if (name && name !== oldName) {
+      await renameGroup(oldName, name)
+    }
+    setEditingGroup(null)
+    setEditGroupName('')
+  }
+
+  const handleDeleteGroup = async (groupName: string) => {
+    const count = allImages.filter(i => i.group_name === groupName).length
+    if (window.confirm(`删除分组「${groupName}」？其中 ${count} 张图片将移至未分组。`)) {
+      await deleteGroup(groupName)
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, group: string) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, group })
+  }
+
+  const handleMoveImage = async (imageId: string, targetGroup: string) => {
+    await updateImageGroup(imageId, targetGroup)
+    if (selectedImage?.id === imageId) {
+      setSelectedImage({ ...selectedImage, group_name: targetGroup })
     }
   }
 
@@ -67,13 +113,21 @@ export default function Assets() {
     <div className="flex h-full">
       {/* Group sidebar */}
       <div className="w-44 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col shrink-0">
-        <div className="p-3 border-b border-[var(--color-border-light)]">
-          <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">分组</span>
+        <div className="p-3 border-b border-[var(--color-border-light)] flex items-center justify-between">
+          <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wide">分组</span>
+          <button
+            onClick={() => setShowNewGroup(true)}
+            className="text-[var(--color-brand-600)] hover:text-[var(--color-brand-700)] text-[16px] leading-none"
+            aria-label="新建分组"
+            title="新建分组"
+          >+</button>
         </div>
-        <div className="flex-1 py-1 px-2 overflow-y-auto space-y-0.5">
+
+        <div className="flex-1 overflow-y-auto py-1">
+          {/* All */}
           <button
             onClick={() => setGroupFilter(null)}
-            className={`w-full text-left px-3 py-2 text-[13px] rounded-lg transition-colors ${
+            className={`w-full text-left px-3 py-2 text-[12px] transition-colors ${
               groupFilter === null
                 ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-700)] font-medium'
                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
@@ -82,137 +136,166 @@ export default function Assets() {
             全部素材
             <span className="ml-1 text-[11px] text-[var(--color-text-muted)]">({allImages.length})</span>
           </button>
+
+          {/* Ungrouped */}
           <button
             onClick={() => setGroupFilter('')}
-            className={`w-full text-left px-3 py-2 text-[13px] rounded-lg transition-colors ${
+            className={`w-full text-left px-3 py-2 text-[12px] transition-colors ${
               groupFilter === ''
                 ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-700)] font-medium'
                 : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
             }`}
           >
             未分组
+            <span className="ml-1 text-[11px] text-[var(--color-text-muted)]">
+              ({allImages.filter(i => !i.group_name).length})
+            </span>
           </button>
+
+          {/* Groups */}
           {allGroups.map((g) => (
-            <button
-              key={g}
-              onClick={() => setGroupFilter(g)}
-              className={`w-full text-left px-3 py-2 text-[13px] rounded-lg transition-colors truncate ${
-                groupFilter === g
-                  ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-700)] font-medium'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-              }`}
-            >
-              {g}
-            </button>
+            editingGroup === g ? (
+              <div key={g} className="px-2 py-1">
+                <input
+                  ref={editGroupRef}
+                  value={editGroupName}
+                  onChange={(e) => setEditGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameGroup(g)
+                    if (e.key === 'Escape') { setEditingGroup(null); setEditGroupName('') }
+                  }}
+                  onBlur={() => handleRenameGroup(g)}
+                  className="w-full px-2 py-1.5 text-[12px] border border-[var(--color-brand-500)] rounded bg-[var(--color-surface)] focus:outline-none"
+                />
+              </div>
+            ) : (
+              <button
+                key={g}
+                onClick={() => setGroupFilter(g)}
+                onContextMenu={(e) => handleContextMenu(e, g)}
+                className={`group w-full text-left px-3 py-2 text-[12px] transition-colors ${
+                  groupFilter === g
+                    ? 'bg-[var(--color-brand-50)] text-[var(--color-brand-700)] font-medium'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+              >
+                {g}
+                <span className="ml-1 text-[11px] text-[var(--color-text-muted)]">
+                  ({allImages.filter(i => i.group_name === g).length})
+                </span>
+              </button>
+            )
           ))}
-        </div>
-        <div className="p-2 border-t border-[var(--color-border-light)]">
-          {showNewGroup ? (
-            <div className="flex gap-1">
+
+          {/* New group input */}
+          {showNewGroup && (
+            <div className="px-2 py-1">
               <input
-                type="text"
+                ref={newGroupRef}
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
-                placeholder="分组名"
-                autoFocus
-                className="flex-1 min-w-0 px-2 py-1.5 border border-[var(--color-border)] rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-500)]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateGroup()
+                  if (e.key === 'Escape') { setShowNewGroup(false); setNewGroupName('') }
+                }}
+                onBlur={() => { if (!newGroupName.trim()) setShowNewGroup(false) }}
+                placeholder="分组名称"
+                className="w-full px-2 py-1.5 text-[12px] border border-[var(--color-brand-500)] rounded bg-[var(--color-surface)] focus:outline-none placeholder:text-[var(--color-text-muted)]"
               />
-              <button onClick={handleCreateGroup} className="px-2 py-1.5 text-[12px] text-[var(--color-brand-600)] hover:bg-[var(--color-brand-50)] rounded">确定</button>
-              <button onClick={() => setShowNewGroup(false)} className="px-1 py-1.5 text-[12px] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] rounded">&times;</button>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowNewGroup(true)}
-              className="w-full px-3 py-1.5 text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-brand-600)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors text-left"
-            >
-              + 新建分组
-            </button>
           )}
         </div>
       </div>
 
-      {/* Image grid */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-            {groupFilter === null ? '全部素材' : groupFilter || '未分组'}
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 min-w-[120px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              setEditingGroup(contextMenu.group)
+              setEditGroupName(contextMenu.group)
+              setContextMenu(null)
+            }}
+            className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+          >
+            重命名
+          </button>
+          <button
+            onClick={() => {
+              handleDeleteGroup(contextMenu.group)
+              setContextMenu(null)
+            }}
+            className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--color-danger)] hover:bg-red-50"
+          >
+            删除分组
+          </button>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border-light)] bg-[var(--color-surface)] shrink-0">
+          <h2 className="text-[14px] font-medium text-[var(--color-text-primary)]">
+            {groupFilter === null ? '全部素材' : groupFilter === '' ? '未分组' : groupFilter}
           </h2>
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className="px-4 py-2 bg-[var(--color-brand-600)] text-white rounded-lg text-[13px] font-medium hover:bg-[var(--color-brand-700)] disabled:opacity-40 active:scale-[0.98] transition-all"
+            className="px-3 py-1.5 bg-[var(--color-brand-600)] text-white rounded-lg text-[12px] font-medium hover:bg-[var(--color-brand-700)] disabled:opacity-50"
           >
-            {uploading ? '上传中...' : '+ 上传图片'}
+            {uploading ? '上传中...' : '上传图片'}
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-6 h-6 border-2 border-[var(--color-brand-500)] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : images.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <svg className="w-12 h-12 text-[var(--color-text-muted)] mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-            </svg>
-            <p className="text-[13px] text-[var(--color-text-muted)]">暂无图片</p>
-            <p className="text-[12px] text-[var(--color-text-muted)] mt-1 opacity-60">点击上方按钮上传图片素材</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-3">
-            {images.map((img) => (
-              <div
-                key={img.id}
-                onClick={() => setSelectedImage(img)}
-                className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                  selectedImage?.id === img.id
-                    ? 'border-[var(--color-brand-500)] shadow-sm'
-                    : 'border-transparent hover:border-[var(--color-border)]'
-                }`}
-              >
-                <img
-                  src={`asset://localhost/${img.file_path}`}
-                  alt={img.filename}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '' }}
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-[11px] text-white truncate">{img.filename}</p>
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <div className="grid grid-cols-4 gap-3">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="aspect-square rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+              ))}
+            </div>
+          ) : images.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <svg className="w-16 h-16 text-[var(--color-border)] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+              </svg>
+              <p className="text-[13px] text-[var(--color-text-muted)]">暂无图片，点击上传开始</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  onClick={() => setSelectedImage(img)}
+                  className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
+                    selectedImage?.id === img.id
+                      ? 'border-[var(--color-brand-500)] shadow-sm'
+                      : 'border-transparent hover:border-[var(--color-border)]'
+                  }`}
+                >
+                  <div className="w-full h-full bg-[var(--color-surface-hover)] flex items-center justify-center">
+                    <span className="text-[11px] text-[var(--color-text-muted)] px-2 text-center truncate">{img.filename}</span>
+                  </div>
+                  {img.group_name && groupFilter === null && (
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded">
+                      {img.group_name}
+                    </span>
+                  )}
                 </div>
-                {img.group_name && (
-                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-sm text-[10px] text-white rounded">
-                    {img.group_name}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Detail panel */}
       {selectedImage && (
-        <div className="w-64 border-l border-[var(--color-border)] bg-[var(--color-surface)] p-5 overflow-y-auto shrink-0">
-          <h3 className="text-[14px] font-medium text-[var(--color-text-primary)] mb-4 truncate">{selectedImage.filename}</h3>
-          <div className="aspect-video rounded-lg overflow-hidden bg-[var(--color-surface-secondary)] mb-4">
-            <img
-              src={`asset://localhost/${selectedImage.file_path}`}
-              alt={selectedImage.filename}
-              className="w-full h-full object-contain"
-            />
-          </div>
+        <div className="w-64 border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4 shrink-0 overflow-y-auto">
+          <h3 className="text-[13px] font-medium text-[var(--color-text-primary)] truncate mb-4">{selectedImage.filename}</h3>
           <div className="space-y-3 text-[12px]">
-            {selectedImage.group_name && (
-              <div>
-                <span className="text-[var(--color-text-muted)]">分组</span>
-                <p className="text-[var(--color-text-primary)] mt-0.5">{selectedImage.group_name}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-[var(--color-text-muted)]">尺寸</span>
-              <p className="text-[var(--color-text-primary)] mt-0.5">{selectedImage.width} × {selectedImage.height}</p>
-            </div>
             <div>
               <span className="text-[var(--color-text-muted)]">大小</span>
               <p className="text-[var(--color-text-primary)] mt-0.5">{(selectedImage.file_size / 1024).toFixed(1)} KB</p>
@@ -220,6 +303,19 @@ export default function Assets() {
             <div>
               <span className="text-[var(--color-text-muted)]">上传时间</span>
               <p className="text-[var(--color-text-primary)] mt-0.5">{selectedImage.created_at}</p>
+            </div>
+            <div>
+              <span className="text-[var(--color-text-muted)]">所属分组</span>
+              <select
+                value={selectedImage.group_name || ''}
+                onChange={(e) => handleMoveImage(selectedImage.id, e.target.value)}
+                className="mt-1 w-full px-2 py-1.5 text-[12px] border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-500)]"
+              >
+                <option value="">未分组</option>
+                {allGroups.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
             </div>
             {selectedImage.wx_media_id && (
               <div>

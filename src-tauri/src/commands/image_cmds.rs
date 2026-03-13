@@ -36,3 +36,21 @@ pub fn list_images(state: State<DbState>, group_name: Option<String>) -> Result<
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     images::list_images(&conn, group_name.as_deref()).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn update_image_group(state: State<DbState>, id: String, group_name: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    images::update_image_group(&conn, &id, &group_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn rename_image_group(state: State<DbState>, old_name: String, new_name: String) -> Result<usize, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    images::rename_image_group(&conn, &old_name, &new_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_image_group(state: State<DbState>, group_name: String) -> Result<usize, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    images::delete_image_group(&conn, &group_name).map_err(|e| e.to_string())
+}
