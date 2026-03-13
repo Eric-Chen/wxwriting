@@ -212,9 +212,12 @@ export default function Assets() {
         <div
           className="fixed z-50 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 min-w-[120px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => {
+            onMouseDown={(e) => {
+              e.stopPropagation()
               setEditingGroup(contextMenu.group)
               setEditGroupName(contextMenu.group)
               setContextMenu(null)
@@ -224,9 +227,10 @@ export default function Assets() {
             重命名
           </button>
           <button
-            onClick={() => {
-              handleDeleteGroup(contextMenu.group)
+            onMouseDown={(e) => {
+              e.stopPropagation()
               setContextMenu(null)
+              handleDeleteGroup(contextMenu.group)
             }}
             className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--color-danger)] hover:bg-red-50"
           >
